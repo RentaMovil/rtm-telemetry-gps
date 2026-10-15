@@ -1,0 +1,126 @@
+package com.rentamovil.telemetry.infrastructure.web.exception;
+
+import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponseException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import com.rentamovil.telemetry.domain.exception.BusinessRuleException;
+import com.rentamovil.telemetry.domain.exception.ForbiddenException;
+import com.rentamovil.telemetry.domain.exception.InvalidDeviceKeyException;
+import com.rentamovil.telemetry.domain.exception.InvalidTokenException;
+import com.rentamovil.telemetry.domain.exception.ResourceNotFoundException;
+import com.rentamovil.telemetry.infrastructure.web.dto.ErrorResponse;
+
+import lombok.extern.slf4j.Slf4j;
+
+/** Convierte las excepciones en el formato de error de telemetry-gps.yaml. */
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleValidation(MethodArgumentNotValidException e) {
+        List<ErrorResponse.FieldError> details = e.getBindingResult().getFieldErrors().stream()
+                .map(error -> new ErrorResponse.FieldError(error.getField(), error.getDefaultMessage()))
+                .toList();
+        return new ErrorResponse("VALIDATION_ERROR", "Datos de entrada inválidos", details);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleBadJson() {
+        return new ErrorResponse("VALIDATION_ERROR", "El cuerpo de la petición no es un JSON válido");
+    }
+
+    /** Un evento de /internal/events sin la estructura esperada. */
+    @ExceptionHandler(InvalidEventException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleInvalidEvent(InvalidEventException e) {
+        if (e.getField() == null) {
+            return new ErrorResponse(e.getCode(), e.getMessage());
+        }
+        return new ErrorResponse(e.getCode(), "El evento no tiene la estructura esperada",
+                List.of(new ErrorResponse.FieldError(e.getField(), e.getMessage())));
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleInvalidToken(InvalidTokenException e) {
+        return new ErrorResponse("INVALID_TOKEN", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidDeviceKeyException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleInvalidDeviceKey(InvalidDeviceKeyException e) {
+        return new ErrorResponse("INVALID_DEVICE_KEY", e.getMessage());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleForbidden(ForbiddenException e) {
+        return new ErrorResponse("FORBIDDEN", e.getMessage());
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleNotFound(ResourceNotFoundException e) {
+        return new ErrorResponse("NOT_FOUND", e.getMessage());
+    }
+
+    /** NO_ACTIVE_RENTAL (Location.INV-001), BOOKING_SERVICE_UNAVAILABLE. */
+    @ExceptionHandler(BusinessRuleException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleBusinessRule(BusinessRuleException e) {
+        return new ErrorResponse(e.getCode(), e.getMessage());
+    }
+
+    /** La base frena algo que la aplicación dejó pasar. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleConflict(DataIntegrityViolationException e) {
+        String cause = String.valueOf(e.getMostSpecificCause().getMessage());
+        log.error("Violación de integridad no esperada", e);
+        if (cause.contains("ck_location_latitude") || cause.contains("ck_location_longitude")) {
+            return new ErrorResponse("INVALID_COORDINATES", "Las coordenadas no son válidas");
+        }
+        return new ErrorResponse("CONFLICT", "El dato entra en conflicto con uno existente");
+    }
+
+    /** Errores propios de Spring que ya traen su código HTTP (405, 415, 404 de ruta). */
+    @ExceptionHandler(ErrorResponseException.class)
+    public ResponseEntity<ErrorResponse> handleSpringWebError(ErrorResponseException e) {
+        return springWebError(e.getStatusCode());
+    }
+
+    /** El detalle solo va al log, nunca en la respuesta. */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception e) {
+        if (e instanceof org.springframework.web.ErrorResponse springError) {
+            return springWebError(springError.getStatusCode());
+        }
+        log.error("Error no controlado", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("INTERNAL_ERROR", "Ocurrió un error inesperado"));
+    }
+
+    private ResponseEntity<ErrorResponse> springWebError(HttpStatusCode status) {
+        String code = switch (status.value()) {
+            case 404 -> "NOT_FOUND";
+            case 405 -> "METHOD_NOT_ALLOWED";
+            case 415 -> "UNSUPPORTED_MEDIA_TYPE";
+            default -> "REQUEST_ERROR";
+        };
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(code, "La petición no es válida para esta ruta"));
+    }
+}

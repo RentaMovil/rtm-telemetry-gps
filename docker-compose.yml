@@ -1,0 +1,21 @@
+# Telemetry & GPS en su propio contenedor. Antes hay que levantar rtm-iam-db, rtm-booking-db y
+# rtm-telemetry-gps-db (schema telemetry), que comparten la red "rentamovil".
+services:
+  telemetry-gps:
+    build: .
+    container_name: rentamovil-telemetry-gps
+    env_file: .env
+    environment:
+      DATABASE_URL: jdbc:sqlserver://sqlserver:1433;databaseName=rentamovil;encrypt=true;trustServerCertificate=true
+      BOOKING_URL: http://booking-reservation:3003
+    ports:
+      - "${APP_TELEMETRY_GPS_PORT:-3005}:3005"
+    networks:
+      rentamovil:
+        # El gateway la encuentra con este nombre: http://telemetry-gps:3005
+        aliases: [telemetry-gps]
+    restart: unless-stopped
+
+networks:
+  rentamovil:
+    external: true
