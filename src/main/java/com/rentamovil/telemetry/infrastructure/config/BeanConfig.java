@@ -3,8 +3,10 @@ package com.rentamovil.telemetry.infrastructure.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.rentamovil.telemetry.application.usecase.GpsCatalogUseCaseImpl;
 import com.rentamovil.telemetry.application.usecase.LocationUseCaseImpl;
 import com.rentamovil.telemetry.application.usecase.RentalTrackingUseCaseImpl;
+import com.rentamovil.telemetry.domain.port.in.GpsCatalogUseCases;
 import com.rentamovil.telemetry.domain.port.in.LocationUseCases;
 import com.rentamovil.telemetry.domain.port.in.RentalTrackingUseCases;
 import com.rentamovil.telemetry.domain.port.out.ActiveTrackingPort;
@@ -30,5 +32,10 @@ public class BeanConfig {
     @Bean
     public RentalTrackingUseCases rentalTrackingUseCases(ActiveTrackingPort activeTracking) {
         return new RentalTrackingUseCaseImpl(activeTracking);
+    }
+
+    @Bean
+    public GpsCatalogUseCases gpsCatalogUseCases(GpsRepositoryPort gpsRepository) {
+        return new GpsCatalogUseCaseImpl(gpsRepository);
     }
 }
