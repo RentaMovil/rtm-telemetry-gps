@@ -11,14 +11,16 @@ public class GpsDeviceResponse {
     private final Integer id;
     private final String serial;
     private final String model;
+    private final boolean active;
 
-    private GpsDeviceResponse(Integer id, String serial, String model) {
+    private GpsDeviceResponse(Integer id, String serial, String model, boolean active) {
         this.id = id;
         this.serial = serial;
         this.model = model;
+        this.active = active;
     }
 
     public static GpsDeviceResponse from(GpsDevice device) {
-        return new GpsDeviceResponse(device.getId(), device.getSerial(), device.getModel());
+        return new GpsDeviceResponse(device.getId(), device.getSerial(), device.getModel(), device.isActive());
     }
 }
