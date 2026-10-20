@@ -31,7 +31,7 @@ import com.rentamovil.telemetry.domain.port.out.LocationRepositoryPort;
 import com.rentamovil.telemetry.domain.port.out.RentalClientPort;
 import com.rentamovil.telemetry.domain.port.out.RentalClientPort.RentalSnapshot;
 
-/** HU-GPS-001/002 (consultas) y Location.INV-001/INV-002 (ingesta y acceso). */
+/** HU-GPS-001/002 (tracking queries) and Location.INV-001/INV-002 (ingestion and access). */
 @ExtendWith(MockitoExtension.class)
 class LocationUseCaseImplTest {
 
@@ -64,8 +64,8 @@ class LocationUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Reportar con gps inexistente responde NOT_FOUND")
-    void gpsInexistenteFalla() {
+    @DisplayName("Reporting with a nonexistent gps responds NOT_FOUND")
+    void nonexistentGpsFails() {
         when(gpsRepository.existsById(GPS_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> useCase.report(GPS_ID, new BigDecimal("4.6"), new BigDecimal("-74.0"), START))
@@ -74,8 +74,8 @@ class LocationUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Location.INV-001: sin renta activa para ese gps, responde NO_ACTIVE_RENTAL")
-    void sinRentaActivaFalla() {
+    @DisplayName("Location.INV-001: without an active rental for that gps, responds NO_ACTIVE_RENTAL")
+    void withoutAnActiveRentalFails() {
         when(gpsRepository.existsById(GPS_ID)).thenReturn(true);
         when(activeTracking.isActive(GPS_ID)).thenReturn(false);
 
@@ -86,8 +86,8 @@ class LocationUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Con renta activa, el reporte se guarda")
-    void conRentaActivaSeGuarda() {
+    @DisplayName("With an active rental, the report is saved")
+    void withAnActiveRentalItIsSaved() {
         when(gpsRepository.existsById(GPS_ID)).thenReturn(true);
         when(activeTracking.isActive(GPS_ID)).thenReturn(true);
         when(locationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -98,20 +98,20 @@ class LocationUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Location.INV-002: un CLIENT no puede consultar la ubicación en vivo")
-    void clienteNoPuedeVerUbicacionEnVivo() {
+    @DisplayName("Location.INV-002: a CLIENT cannot query the live location")
+    void clientCannotSeeTheLiveLocation() {
         assertThatThrownBy(() -> useCase.getLive(client(), RENTAL_ID)).isInstanceOf(ForbiddenException.class);
     }
 
     @Test
-    @DisplayName("Location.INV-002: un CLIENT no puede consultar el historial, ni de su propia reserva")
-    void clienteNoPuedeVerHistorial() {
+    @DisplayName("Location.INV-002: a CLIENT cannot query the history, not even of their own reservation")
+    void clientCannotSeeTheHistory() {
         assertThatThrownBy(() -> useCase.getHistory(client(), RENTAL_ID)).isInstanceOf(ForbiddenException.class);
     }
 
     @Test
-    @DisplayName("getLive acota la busqueda desde el inicio de la renta, no solo por gpsId")
-    void getLiveAcotaPorInicioDeRenta() {
+    @DisplayName("getLive bounds the search from the rental's start, not just by gpsId")
+    void getLiveBoundsBySinceTheRentalStarted() {
         when(rentalClient.getRental(RENTAL_ID)).thenReturn(new RentalSnapshot(RENTAL_ID, GPS_ID, START, null));
         Location latest = Location.restore(99, GPS_ID, new BigDecimal("4.6"), new BigDecimal("-74.0"), START.plusMinutes(5));
         when(locationRepository.findLatest(GPS_ID, START)).thenReturn(Optional.of(latest));
@@ -123,8 +123,8 @@ class LocationUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("getHistory usa el fin real de la renta como limite superior")
-    void getHistoryUsaFinDeLaRenta() {
+    @DisplayName("getHistory uses the rental's real end as the upper bound")
+    void getHistoryUsesTheRentalsEnd() {
         LocalDateTime end = START.plusDays(2);
         when(rentalClient.getRental(RENTAL_ID)).thenReturn(new RentalSnapshot(RENTAL_ID, GPS_ID, START, end));
         when(locationRepository.findRoute(GPS_ID, START, end)).thenReturn(List.of());
