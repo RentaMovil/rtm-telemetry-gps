@@ -48,4 +48,18 @@ class LocationTest {
         assertThat(Location.create(1, new BigDecimal("90"), new BigDecimal("180"), NOW)).isNotNull();
         assertThat(Location.create(1, new BigDecimal("-90"), new BigDecimal("-180"), NOW)).isNotNull();
     }
+
+    @Test
+    @DisplayName("(0, 0) is rejected: it's inside the valid range but it's the GPS-no-fix placeholder")
+    void nullIslandIsRejected() {
+        assertThatThrownBy(() -> Location.create(1, BigDecimal.ZERO, BigDecimal.ZERO, NOW))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    @DisplayName("(0, lng) or (lat, 0) alone is accepted: only the exact (0, 0) pair is the placeholder")
+    void partialZeroIsAccepted() {
+        assertThat(Location.create(1, BigDecimal.ZERO, new BigDecimal("-74.0817"), NOW)).isNotNull();
+        assertThat(Location.create(1, new BigDecimal("4.6097"), BigDecimal.ZERO, NOW)).isNotNull();
+    }
 }
