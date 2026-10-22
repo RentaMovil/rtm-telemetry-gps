@@ -2,8 +2,10 @@ package com.rentamovil.telemetry.infrastructure.booking;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -55,6 +57,27 @@ public class RentalClientAdapter implements RentalClientPort {
             throw unavailable();
         } catch (RestClientException e) {
             throw unavailable();
+        }
+    }
+
+    @Override
+    public List<RentalSnapshot> getActiveRentals() {
+        try {
+            List<RentalApiResponse> response = restClient.get()
+                    .uri("/internal/rentals/active")
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<RentalApiResponse>>() { });
+            if (response == null) {
+                return List.of();
+            }
+            return response.stream()
+                    .map(r -> new RentalSnapshot(r.id(), r.gpsId(), r.actualStartDate(), r.actualEndDate()))
+                    .toList();
+        } catch (RestClientException e) {
+            // Al arrancar: si booking-reservation no responde todavía, se arranca igual sin
+            // tracking activo reconstruido -- mejor que tumbar telemetry-gps por una dependencia
+            // que puede no estar lista aún (mismo nivel de tolerancia que el resto del sistema).
+            return List.of();
         }
     }
 
