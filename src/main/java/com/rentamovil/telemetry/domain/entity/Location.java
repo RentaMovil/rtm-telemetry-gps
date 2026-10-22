@@ -37,6 +37,13 @@ public class Location {
                                   LocalDateTime timestamp) {
         validateRange("latitude", latitude, -90, 90);
         validateRange("longitude", longitude, -180, 180);
+        // (0, 0) es "Null Island": dentro del rango válido pero nunca una posición real de la
+        // flota. Varios módulos GPS la mandan como placeholder mientras todavía no tienen fix
+        // (ver README -> "Sin fix todavía"), y sin este rechazo quedaba guardada como un punto
+        // más de la ruta, dibujando un salto enorme en el mapa hasta el golfo de Guinea.
+        if (BigDecimal.ZERO.compareTo(latitude) == 0 && BigDecimal.ZERO.compareTo(longitude) == 0) {
+            throw new BusinessRuleException("GPS_NO_FIX", "El GPS todavía no tiene una posición válida");
+        }
         return new Location(null, gpsId, latitude, longitude, timestamp);
     }
 
