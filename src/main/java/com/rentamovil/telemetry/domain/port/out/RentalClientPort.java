@@ -1,6 +1,7 @@
 package com.rentamovil.telemetry.domain.port.out;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Resuelve rentalId -> gpsId y la ventana de fechas de esa renta, llamando a
@@ -14,6 +15,9 @@ import java.time.LocalDateTime;
 public interface RentalClientPort {
 
     RentalSnapshot getRental(Integer rentalId);
+
+    /** Rentas IN_PROGRESS ahora mismo en booking-reservation (GET /internal/rentals/active). */
+    List<RentalSnapshot> getActiveRentals();
 
     record RentalSnapshot(Integer id, Integer gpsId, LocalDateTime actualStartDate,
                           LocalDateTime actualEndDate) {
