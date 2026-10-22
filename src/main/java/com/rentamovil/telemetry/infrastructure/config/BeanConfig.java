@@ -30,8 +30,9 @@ public class BeanConfig {
     }
 
     @Bean
-    public RentalTrackingUseCases rentalTrackingUseCases(ActiveTrackingPort activeTracking) {
-        return new RentalTrackingUseCaseImpl(activeTracking);
+    public RentalTrackingUseCases rentalTrackingUseCases(ActiveTrackingPort activeTracking,
+                                                          RentalClientPort rentalClient) {
+        return new RentalTrackingUseCaseImpl(activeTracking, rentalClient);
     }
 
     @Bean
