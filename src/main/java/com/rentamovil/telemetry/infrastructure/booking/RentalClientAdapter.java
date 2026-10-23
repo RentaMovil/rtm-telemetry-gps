@@ -31,11 +31,13 @@ public class RentalClientAdapter implements RentalClientPort {
     private final RestClient restClient;
 
     public RentalClientAdapter(@Value("${app.telemetry-gps.booking-url}") String bookingUrl,
-                              @Value("${app.telemetry-gps.booking-timeout}") Duration timeout) {
+                              @Value("${app.telemetry-gps.booking-timeout}") Duration timeout,
+                              @Value("${app.internal.api-key}") String internalApiKey) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(timeout);
         requestFactory.setReadTimeout(timeout);
-        this.restClient = RestClient.builder().baseUrl(bookingUrl).requestFactory(requestFactory).build();
+        this.restClient = RestClient.builder().baseUrl(bookingUrl).requestFactory(requestFactory)
+                .defaultHeader("X-Internal-Key", internalApiKey).build();
     }
 
     @Override
