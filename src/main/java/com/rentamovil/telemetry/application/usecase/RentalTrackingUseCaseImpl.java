@@ -22,7 +22,15 @@ public class RentalTrackingUseCaseImpl implements RentalTrackingUseCases {
 
     @Override
     public void onRentalCompleted(Integer gpsId) {
-        activeTracking.stop(gpsId);
+        // Un mismo dispositivo físico se reutiliza entre rentas (ver RentalClientPort): si otra
+        // renta todavía en curso usa este mismo gpsId, no se desactiva el tracking por el solo
+        // hecho de que ESTA renta terminó, o sus reportes empezarían a rechazarse con
+        // NO_ACTIVE_RENTAL pese a que el dispositivo sigue instalado en un vehículo con renta activa.
+        boolean stillActiveElsewhere = rentalClient.getActiveRentals().stream()
+                .anyMatch(rental -> gpsId.equals(rental.gpsId()));
+        if (!stillActiveElsewhere) {
+            activeTracking.stop(gpsId);
+        }
     }
 
     @Override
