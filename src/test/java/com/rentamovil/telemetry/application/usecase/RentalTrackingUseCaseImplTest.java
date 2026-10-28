@@ -1,5 +1,6 @@
 package com.rentamovil.telemetry.application.usecase;
 
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,10 +42,23 @@ class RentalTrackingUseCaseImplTest {
     }
 
     @Test
-    void rentalCompletedStopsTrackingThatGpsDevice() {
+    void rentalCompletedStopsTrackingThatGpsDeviceWhenNoOtherRentalUsesIt() {
+        when(rentalClient.getActiveRentals()).thenReturn(List.of());
+
         useCase.onRentalCompleted(GPS_ID);
 
         verify(activeTracking).stop(GPS_ID);
+    }
+
+    @Test
+    void rentalCompletedKeepsTrackingWhenAnotherActiveRentalReusesTheSameGpsDevice() {
+        // El mismo dispositivo físico, reinstalado en otro vehículo con una renta todavía en curso.
+        RentalSnapshot stillActive = new RentalSnapshot(99, GPS_ID, LocalDateTime.now(), null);
+        when(rentalClient.getActiveRentals()).thenReturn(List.of(stillActive));
+
+        useCase.onRentalCompleted(GPS_ID);
+
+        verify(activeTracking, never()).stop(GPS_ID);
     }
 
     @Test
